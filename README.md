@@ -2,6 +2,8 @@
 
 Pi extension that translates assistant responses from English to Thai using a local Ollama model.
 
+This package is published publicly on npm.
+
 ## Requirements
 
 - [Pi](https://pi.dev)
@@ -51,7 +53,8 @@ Config file:
 
 ## Publish
 
+The package is public, so this is only needed when releasing a new version.
+
 ```bash
 npm publish --access public
 ```
-# pi-en2th
