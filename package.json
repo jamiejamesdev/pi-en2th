@@ -1,0 +1,16 @@
+{
+  "name": "pi-en2th",
+  "version": "0.1.3",
+  "description": "Pi extension that translates assistant responses from English to Thai using a local Ollama model.",
+  "keywords": [
+    "pi-package"
+  ],
+  "pi": {
+    "extensions": [
+      "./en2th.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  }
+}
