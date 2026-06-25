@@ -39,6 +39,7 @@ Enable it in pi, then use:
 - `/en2th-status` — show current status
 
 The extension appends Thai translation under each assistant text response.
+It also shows a persistent footer status in pi with on/off state, selected model, Ollama host, and the last translation time.
 
 ## Config
 

@@ -19,6 +19,38 @@ type Config = {
 };
 
 let config: Config = loadConfig();
+let lastTranslationMs: number | null = null;
+
+function getOllamaLabel(): string {
+	try {
+		const url = new URL(OLLAMA_BASE_URL);
+		return url.host;
+	} catch {
+		return OLLAMA_BASE_URL;
+	}
+}
+
+function formatStatus(extra?: string): string {
+	const base = [
+		`EN→TH ${config.enabled ? "on" : "off"}`,
+		config.model,
+		`Ollama ${getOllamaLabel()}`,
+	];
+
+	if (lastTranslationMs != null) {
+		base.push(`last ${lastTranslationMs}ms`);
+	}
+
+	if (extra) {
+		base.push(extra);
+	}
+
+	return base.join(" · ");
+}
+
+function refreshStatus(ctx: { ui: { setStatus: (id: string, text?: string) => void } }, extra?: string) {
+	ctx.ui.setStatus("en2th-translate", formatStatus(extra));
+}
 
 function loadConfig(): Config {
 	try {
@@ -98,6 +130,14 @@ function buildTranslatedBlock(original: string, translated: string, durationMs: 
 }
 
 export default function (pi: ExtensionAPI) {
+	pi.on("session_start", async (_event, ctx) => {
+		refreshStatus(ctx);
+	});
+
+	pi.on("session_shutdown", async (_event, ctx) => {
+		ctx.ui.setStatus("en2th-translate", undefined);
+	});
+
 	pi.registerCommand("en2th-model", {
 		description:
 			"Select the local Ollama model used for English → Thai response translation",
@@ -126,6 +166,7 @@ export default function (pi: ExtensionAPI) {
 
 				config = { ...config, model: requested };
 				saveConfig();
+				refreshStatus(ctx);
 				ctx.ui.notify(
 					`English translator model set to: ${config.model}`,
 					"success",
@@ -162,6 +203,7 @@ export default function (pi: ExtensionAPI) {
 
 			config = { ...config, model: choice.replace(/\s+✓ current$/, "") };
 			saveConfig();
+			refreshStatus(ctx);
 			ctx.ui.notify(`English translator model set to: ${config.model}`, "success");
 		},
 	});
@@ -171,6 +213,7 @@ export default function (pi: ExtensionAPI) {
 		handler: async (_args, ctx) => {
 			config = { ...config, enabled: !config.enabled };
 			saveConfig();
+			refreshStatus(ctx);
 			ctx.ui.notify(
 				`English → Thai translation ${config.enabled ? "enabled" : "disabled"}`,
 				"info",
@@ -181,6 +224,7 @@ export default function (pi: ExtensionAPI) {
 	pi.registerCommand("en2th-status", {
 		description: "Show English → Thai response translation status",
 		handler: async (_args, ctx) => {
+			refreshStatus(ctx);
 			ctx.ui.notify(
 				`English → Thai translation: ${config.enabled ? "enabled" : "disabled"}; model: ${config.model}; Ollama: ${OLLAMA_BASE_URL}`,
 				"info",
@@ -189,12 +233,13 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("message_end", async (event, ctx) => {
+		refreshStatus(ctx);
 		if (!config.enabled) return;
 		if (event.message.role !== "assistant") return;
 		if (!Array.isArray(event.message.content)) return;
 
 		try {
-			ctx.ui.setStatus("en2th-translate", `EN→TH: ${config.model}`);
+			refreshStatus(ctx, "translating");
 
 			const content = await Promise.all(
 				event.message.content.map(async (part) => {
@@ -204,6 +249,7 @@ export default function (pi: ExtensionAPI) {
 
 					try {
 						const { translated, durationMs } = await translateEnglishToThai(part.text, ctx.signal);
+						lastTranslationMs = durationMs;
 						return {
 							...part,
 							text: buildTranslatedBlock(part.text, translated, durationMs),
@@ -227,7 +273,7 @@ export default function (pi: ExtensionAPI) {
 			);
 			return;
 		} finally {
-			ctx.ui.setStatus("en2th-translate", "");
+			refreshStatus(ctx);
 		}
 	});
 }
