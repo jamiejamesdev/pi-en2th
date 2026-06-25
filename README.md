@@ -25,7 +25,7 @@ pi install npm:pi-en2th
 ### From git
 
 ```bash
-pi install git:github.com/<you>/pi-en2th
+pi install https://github.com/jamiejamesdev/pi-en2th.git
 ```
 
 ## Usage
