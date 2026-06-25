@@ -11,10 +11,15 @@ const CONFIG_PATH = join(
 );
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434";
 const DEFAULT_MODEL = process.env.EN2TH_TRANSLATE_MODEL ?? "translategemma:latest";
+const DEFAULT_STYLE: StylePreset = "natural";
+const STYLE_PRESETS = ["natural", "literal", "technical"] as const;
+
+type StylePreset = (typeof STYLE_PRESETS)[number];
 
 type Config = {
 	model: string;
 	enabled: boolean;
+	style: StylePreset;
 };
 
 let config: Config = loadConfig();
@@ -33,6 +38,7 @@ function formatStatus(extra?: string): string {
 	const base = [
 		` | EN→TH ${config.enabled ? "on" : "off"}`,
 		config.model,
+		`style ${config.style}`,
 		`Ollama ${getOllamaLabel()} |`,
 	];
 
@@ -54,9 +60,11 @@ function refreshStatus(ctx: { ui: { setStatus: (id: string, text?: string) => vo
 function loadConfig(): Config {
 	try {
 		const raw = readFileSync(CONFIG_PATH, "utf8");
-		return { enabled: true, model: DEFAULT_MODEL, ...JSON.parse(raw) };
+		const parsed = JSON.parse(raw);
+		const style = STYLE_PRESETS.includes(parsed.style) ? parsed.style : DEFAULT_STYLE;
+		return { enabled: true, model: DEFAULT_MODEL, style: DEFAULT_STYLE, ...parsed, style };
 	} catch {
-		return { model: DEFAULT_MODEL, enabled: true };
+		return { model: DEFAULT_MODEL, enabled: true, style: DEFAULT_STYLE };
 	}
 }
 
@@ -70,6 +78,18 @@ async function listOllamaModels(signal?: AbortSignal): Promise<string[]> {
 	if (!res.ok) throw new Error(`Ollama /api/tags failed: ${res.status}`);
 	const data = (await res.json()) as { models?: Array<{ name: string }> };
 	return (data.models ?? []).map((m) => m.name).sort();
+}
+
+function getStyleInstruction(style: StylePreset): string {
+	switch (style) {
+		case "literal":
+			return "Translate as literally as possible while staying grammatical in Thai. Prefer fidelity over smooth paraphrasing.";
+		case "technical":
+			return "Translate for a technical audience. Preserve precise meaning, technical terminology, and product/API wording over conversational smoothness.";
+		case "natural":
+		default:
+			return "Translate into natural, fluent Thai while preserving the original meaning.";
+	}
 }
 
 async function translateEnglishToThai(
@@ -90,11 +110,12 @@ async function translateEnglishToThai(
 				temperature: 0,
 				num_predict: 4096,
 			},
-			prompt: `Translate the following English assistant response into natural Thai.
+			prompt: `Translate the following English assistant response into Thai.
 
 Rules:
 - Output only the Thai translation.
 - Do not answer or extend the content.
+- ${getStyleInstruction(config.style)}
 - Preserve code blocks, inline code, commands, paths, filenames, package names, API names, URLs, markdown structure, and quoted strings exactly where possible.
 - Keep formatting and list structure.
 - If a segment is already code or should remain unchanged, keep it unchanged.
@@ -121,6 +142,7 @@ function buildTranslatedBlock(original: string, translated: string, durationMs: 
 		"## ✨ Translation Notes ✨",
 		"",
 		`> **🟦 Source model:** \`${config.model}\``,
+		`> **🟪 Style preset:** \`${config.style}\``,
 		`> **🟩 Processing time:** \`${durationMs} ms\` · \`${seconds} s\` · \`${minutes} min\``,
 		`> **🟨 Data points:** original chars=\`${original.length}\`, translated chars=\`${translated.length}\``,
 	].join("\n");
@@ -220,12 +242,51 @@ export default function (pi: any) {
 		},
 	});
 
+	pi.registerCommand("en2th-style", {
+		description: "Select the English → Thai translation style preset",
+		handler: async (args, ctx) => {
+			const requested = args.trim() as StylePreset;
+
+			if (requested) {
+				if (!STYLE_PRESETS.includes(requested)) {
+					ctx.ui.notify(
+						`Unknown style preset: ${requested}. Use: ${STYLE_PRESETS.join(", ")}`,
+						"error",
+					);
+					return;
+				}
+
+				config = { ...config, style: requested };
+				saveConfig();
+				refreshStatus(ctx);
+				ctx.ui.notify(`English translator style set to: ${config.style}`, "success");
+				return;
+			}
+
+			const choice = await ctx.ui.select(
+				"Select English → Thai translation style",
+				STYLE_PRESETS.map(
+					(style) => `${style}${style === config.style ? "  ✓ current" : ""}`,
+				),
+			);
+			if (!choice) return;
+
+			config = {
+				...config,
+				style: choice.replace(/\s+✓ current$/, "") as StylePreset,
+			};
+			saveConfig();
+			refreshStatus(ctx);
+			ctx.ui.notify(`English translator style set to: ${config.style}`, "success");
+		},
+	});
+
 	pi.registerCommand("en2th-status", {
 		description: "Show English → Thai response translation status",
 		handler: async (_args, ctx) => {
 			refreshStatus(ctx);
 			ctx.ui.notify(
-				`English → Thai translation: ${config.enabled ? "enabled" : "disabled"}; model: ${config.model}; Ollama: ${OLLAMA_BASE_URL}`,
+				`English → Thai translation: ${config.enabled ? "enabled" : "disabled"}; model: ${config.model}; style: ${config.style}; Ollama: ${OLLAMA_BASE_URL}`,
 				"info",
 			);
 		},

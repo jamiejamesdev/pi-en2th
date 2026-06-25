@@ -36,6 +36,7 @@ Enable it in pi, then use:
 
 - `/en2th-toggle` — enable or disable translation
 - `/en2th-model` — choose the Ollama model
+- `/en2th-style` — choose translation style: `natural`, `literal`, or `technical`
 - `/en2th-status` — show current status
 
 The extension appends Thai translation under each assistant text response.
@@ -47,6 +48,12 @@ Environment variables:
 
 - `OLLAMA_BASE_URL` — defaults to `http://localhost:11434`
 - `EN2TH_TRANSLATE_MODEL` — default model name
+
+Style presets:
+
+- `natural` — smoother Thai phrasing
+- `literal` — closer wording to the English source
+- `technical` — preserves technical terminology more strictly
 
 Config file:
 
