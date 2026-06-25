@@ -31,9 +31,9 @@ function getOllamaLabel(): string {
 
 function formatStatus(extra?: string): string {
 	const base = [
-		`EN→TH ${config.enabled ? "on" : "off"}`,
+		` | EN→TH ${config.enabled ? "on" : "off"}`,
 		config.model,
-		`Ollama ${getOllamaLabel()}`,
+		`Ollama ${getOllamaLabel()} |`,
 	];
 
 	if (lastTranslationMs != null) {
