@@ -105,6 +105,25 @@ export default function (pi: ExtensionAPI) {
 			const requested = args.trim();
 
 			if (requested) {
+				let models: string[];
+				try {
+					models = await listOllamaModels(ctx.signal);
+				} catch (error) {
+					ctx.ui.notify(
+						`Could not validate Ollama model: ${String(error)}`,
+						"error",
+					);
+					return;
+				}
+
+				if (!models.includes(requested)) {
+					ctx.ui.notify(
+						`Model not found in Ollama: ${requested}`,
+						"error",
+					);
+					return;
+				}
+
 				config = { ...config, model: requested };
 				saveConfig();
 				ctx.ui.notify(
@@ -183,14 +202,15 @@ export default function (pi: ExtensionAPI) {
 						return part;
 					}
 
-					const { translated, durationMs } = await translateEnglishToThai(
-						part.text,
-						ctx.signal,
-					);
-					return {
-						...part,
-						text: buildTranslatedBlock(part.text, translated, durationMs),
-					};
+					try {
+						const { translated, durationMs } = await translateEnglishToThai(part.text, ctx.signal);
+						return {
+							...part,
+							text: buildTranslatedBlock(part.text, translated, durationMs),
+						};
+					} catch {
+						return part;
+					}
 				}),
 			);
 
