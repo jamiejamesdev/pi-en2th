@@ -9,8 +9,5 @@
     "extensions": [
       "./en2th.ts"
     ]
-  },
-  "peerDependencies": {
-    "@earendil-works/pi-coding-agent": "*"
   }
 }

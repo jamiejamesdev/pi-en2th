@@ -1,5 +1,4 @@
 // @ts-nocheck
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
@@ -129,7 +128,7 @@ function buildTranslatedBlock(original: string, translated: string, durationMs: 
 	return `${original}\n\n\n${metadata}\n\n${translated}`;
 }
 
-export default function (pi: ExtensionAPI) {
+export default function (pi: any) {
 	pi.on("session_start", async (_event, ctx) => {
 		refreshStatus(ctx);
 	});
