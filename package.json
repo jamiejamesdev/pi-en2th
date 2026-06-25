@@ -1,6 +1,6 @@
 {
   "name": "pi-en2th",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Pi extension that translates assistant responses from English to Thai using a local Ollama model.",
   "keywords": [
     "pi-package"
