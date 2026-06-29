@@ -37,10 +37,12 @@ Enable it in pi, then use:
 - `/en2th-toggle` — enable or disable translation
 - `/en2th-model` — choose the Ollama model
 - `/en2th-style` — choose translation style: `natural`, `literal`, or `technical`
+- `/en2th-output` — choose output mode: `append`, `replace`, or `thai-only`
 - `/en2th-status` — show current status
 
-The extension appends Thai translation under each assistant text response.
-It also shows a persistent footer status in pi with on/off state, selected model, Ollama host, and the last translation time.
+The extension preserves fenced code blocks and translates only the surrounding prose.
+It can show translations in three modes: append below the original, replace the original with translation notes, or show Thai only.
+It also shows a persistent footer status in pi with on/off state, selected model, style, output mode, Ollama host, and the last translation time.
 
 ## Config
 
@@ -54,6 +56,12 @@ Style presets:
 - `natural` — smoother Thai phrasing
 - `literal` — closer wording to the English source
 - `technical` — preserves technical terminology more strictly
+
+Output modes:
+
+- `append` — keep the original and add Thai below it
+- `replace` — replace the original with translation notes and Thai
+- `thai-only` — show only the Thai translation
 
 Config file:
 

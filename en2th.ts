@@ -13,13 +13,17 @@ const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434";
 const DEFAULT_MODEL = process.env.EN2TH_TRANSLATE_MODEL ?? "translategemma:latest";
 const DEFAULT_STYLE: StylePreset = "natural";
 const STYLE_PRESETS = ["natural", "literal", "technical"] as const;
+const OUTPUT_MODES = ["append", "replace", "thai-only"] as const;
+const FENCED_CODE_BLOCK_RE = /(```[\s\S]*?```)/g;
 
 type StylePreset = (typeof STYLE_PRESETS)[number];
+type OutputMode = (typeof OUTPUT_MODES)[number];
 
 type Config = {
 	model: string;
 	enabled: boolean;
 	style: StylePreset;
+	outputMode: OutputMode;
 };
 
 let config: Config = loadConfig();
@@ -39,6 +43,7 @@ function formatStatus(extra?: string): string {
 		` | EN→TH ${config.enabled ? "on" : "off"}`,
 		config.model,
 		`style ${config.style}`,
+		`mode ${config.outputMode}`,
 		`Ollama ${getOllamaLabel()} |`,
 	];
 
@@ -62,9 +67,20 @@ function loadConfig(): Config {
 		const raw = readFileSync(CONFIG_PATH, "utf8");
 		const parsed = JSON.parse(raw);
 		const style = STYLE_PRESETS.includes(parsed.style) ? parsed.style : DEFAULT_STYLE;
-		return { enabled: true, model: DEFAULT_MODEL, style: DEFAULT_STYLE, ...parsed, style };
+		const outputMode = OUTPUT_MODES.includes(parsed.outputMode)
+			? parsed.outputMode
+			: "append";
+		return {
+			enabled: true,
+			model: DEFAULT_MODEL,
+			style: DEFAULT_STYLE,
+			outputMode: "append",
+			...parsed,
+			style,
+			outputMode,
+		};
 	} catch {
-		return { model: DEFAULT_MODEL, enabled: true, style: DEFAULT_STYLE };
+		return { model: DEFAULT_MODEL, enabled: true, style: DEFAULT_STYLE, outputMode: "append" };
 	}
 }
 
@@ -135,6 +151,29 @@ Thai translation:`,
 	return { translated, durationMs: Date.now() - startedAt };
 }
 
+async function translatePreservingCodeBlocks(
+	text: string,
+	signal?: AbortSignal,
+): Promise<{ translated: string; durationMs: number }> {
+	const parts = text.split(FENCED_CODE_BLOCK_RE);
+	let translated = "";
+	let durationMs = 0;
+
+	for (const [index, part] of parts.entries()) {
+		if (!part) continue;
+		if (index % 2 === 1) {
+			translated += part;
+			continue;
+		}
+
+		const result = await translateEnglishToThai(part, signal);
+		translated += result.translated;
+		durationMs += result.durationMs;
+	}
+
+	return { translated, durationMs };
+}
+
 function buildTranslatedBlock(original: string, translated: string, durationMs: number) {
 	const seconds = (durationMs / 1000).toFixed(2);
 	const minutes = (durationMs / 60000).toFixed(2);
@@ -143,9 +182,18 @@ function buildTranslatedBlock(original: string, translated: string, durationMs: 
 		"",
 		`> **🟦 Source model:** \`${config.model}\``,
 		`> **🟪 Style preset:** \`${config.style}\``,
+		`> **🟫 Output mode:** \`${config.outputMode}\``,
 		`> **🟩 Processing time:** \`${durationMs} ms\` · \`${seconds} s\` · \`${minutes} min\``,
 		`> **🟨 Data points:** original chars=\`${original.length}\`, translated chars=\`${translated.length}\``,
 	].join("\n");
+
+	if (config.outputMode === "thai-only") {
+		return translated;
+	}
+
+	if (config.outputMode === "replace") {
+		return `${metadata}\n\n${translated}`;
+	}
 
 	return `${original}\n\n\n${metadata}\n\n${translated}`;
 }
@@ -281,12 +329,51 @@ export default function (pi: any) {
 		},
 	});
 
+	pi.registerCommand("en2th-output", {
+		description: "Select how translated output is shown: append, replace, or thai-only",
+		handler: async (args, ctx) => {
+			const requested = args.trim() as OutputMode;
+
+			if (requested) {
+				if (!OUTPUT_MODES.includes(requested)) {
+					ctx.ui.notify(
+						`Unknown output mode: ${requested}. Use: ${OUTPUT_MODES.join(", ")}`,
+						"error",
+					);
+					return;
+				}
+
+				config = { ...config, outputMode: requested };
+				saveConfig();
+				refreshStatus(ctx);
+				ctx.ui.notify(`English translator output mode set to: ${config.outputMode}`, "success");
+				return;
+			}
+
+			const choice = await ctx.ui.select(
+				"Select English → Thai output mode",
+				OUTPUT_MODES.map(
+					(mode) => `${mode}${mode === config.outputMode ? "  ✓ current" : ""}`,
+				),
+			);
+			if (!choice) return;
+
+			config = {
+				...config,
+				outputMode: choice.replace(/\s+✓ current$/, "") as OutputMode,
+			};
+			saveConfig();
+			refreshStatus(ctx);
+			ctx.ui.notify(`English translator output mode set to: ${config.outputMode}`, "success");
+		},
+	});
+
 	pi.registerCommand("en2th-status", {
 		description: "Show English → Thai response translation status",
 		handler: async (_args, ctx) => {
 			refreshStatus(ctx);
 			ctx.ui.notify(
-				`English → Thai translation: ${config.enabled ? "enabled" : "disabled"}; model: ${config.model}; style: ${config.style}; Ollama: ${OLLAMA_BASE_URL}`,
+				`English → Thai translation: ${config.enabled ? "enabled" : "disabled"}; model: ${config.model}; style: ${config.style}; output: ${config.outputMode}; Ollama: ${OLLAMA_BASE_URL}`,
 				"info",
 			);
 		},
@@ -308,7 +395,7 @@ export default function (pi: any) {
 					}
 
 					try {
-						const { translated, durationMs } = await translateEnglishToThai(part.text, ctx.signal);
+						const { translated, durationMs } = await translatePreservingCodeBlocks(part.text, ctx.signal);
 						lastTranslationMs = durationMs;
 						return {
 							...part,
