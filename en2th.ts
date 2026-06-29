@@ -40,11 +40,11 @@ function getOllamaLabel(): string {
 
 function formatStatus(extra?: string): string {
 	const base = [
-		` | EN→TH ${config.enabled ? "on" : "off"}`,
+		` | en2th ${config.enabled ? "on" : "off"}`,
 		config.model,
-		`style ${config.style}`,
-		`mode ${config.outputMode}`,
-		`Ollama ${getOllamaLabel()} |`,
+		`${config.style}`,
+		`${config.outputMode}`,
+		// `Ollama ${getOllamaLabel()} |`,
 	];
 
 	if (lastTranslationMs != null) {
@@ -55,6 +55,7 @@ function formatStatus(extra?: string): string {
 		base.push(extra);
 	}
 
+	base.push(` | `)
 	return base.join(" · ");
 }
 
