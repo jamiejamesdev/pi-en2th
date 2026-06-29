@@ -166,8 +166,16 @@ async function translatePreservingCodeBlocks(
 			continue;
 		}
 
-		const result = await translateEnglishToThai(part, signal);
-		translated += result.translated;
+		const leading = part.match(/^\s*/)?.[0] ?? "";
+		const trailing = part.match(/\s*$/)?.[0] ?? "";
+		const middle = part.slice(leading.length, part.length - trailing.length);
+		if (!middle) {
+			translated += part;
+			continue;
+		}
+
+		const result = await translateEnglishToThai(middle, signal);
+		translated += `${leading}${result.translated}${trailing}`;
 		durationMs += result.durationMs;
 	}
 
