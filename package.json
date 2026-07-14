@@ -1,10 +1,28 @@
 {
   "name": "pi-en2th",
   "version": "0.2.3",
-  "description": "Pi extension that translates assistant responses from English to Thai using a local Ollama model.",
+  "description": "Pi extension for local English-to-Thai assistant response translation with Ollama.",
   "keywords": [
-    "pi-package"
+    "pi",
+    "pi-package",
+    "pi-extension",
+    "translation",
+    "ollama",
+    "english-to-thai",
+    "thai",
+    "thai-translation",
+    "local-llm",
+    "assistant-translation"
   ],
+  "homepage": "https://github.com/jamiejamesdev/pi-en2th#readme",
+  "bugs": {
+    "url": "https://github.com/jamiejamesdev/pi-en2th/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jamiejamesdev/pi-en2th.git"
+  },
+  "license": "UNLICENSED",
   "pi": {
     "extensions": [
       "./en2th.ts"
