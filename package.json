@@ -22,7 +22,16 @@
     "type": "git",
     "url": "git+https://github.com/jamiejamesdev/pi-en2th.git"
   },
-  "license": "UNLICENSED",
+  "author": "jamiejamesdev <jamiejamesdev@gmail.com>",
+  "license": "MIT",
+  "files": [
+    "en2th.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "pi": {
     "extensions": [
       "./en2th.ts"
